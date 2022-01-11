@@ -5,7 +5,9 @@
     <title>Mapbox Directions Test</title>
     <meta name='viewport' content='width=device-width, initial-scale=1' />
     <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js'></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.min.js'></script>
     <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css' rel='stylesheet' />
+    <link href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.css' rel='stylesheet' />
     <style>
       body {
         margin: 0;
@@ -20,13 +22,16 @@
       #instructions {
 			  position: absolute;
 			  margin: 20px;
-			  width: 25%;
+			  width: 20%;
 			  top: 0;
 			  bottom: 20%;
 			  padding: 20px;
 			  background-color: #fff;
 			  overflow-y: scroll;
 			  font-family: sans-serif;
+			}
+			.mapboxgl-ctrl-geocoder {
+				width: 300px;
 			}
     </style>
   </head>
@@ -41,6 +46,12 @@
 			  center: [-89.35, 43.05], 
 			  zoom: 12
 			});
+			// set the bounds of the map
+			const bounds = [
+			  [-92.889427,42.491592],
+			  [-86.82352,47.077252]
+			];
+			map.setMaxBounds(bounds);
 
 			// an arbitrary start will always be the same
 			// only the end or destination will change
@@ -100,8 +111,32 @@
 				}
 				instructions.innerHTML = `<p><strong>Trip duration: ${Math.floor(
 				  data.duration / 60
-				)} min 🚴 </strong></p><ol>${tripInstructions}</ol>`;
+				)} min</strong></p><ol>${tripInstructions}</ol>`;
 			}
+
+			const geocoder = new MapboxGeocoder({
+				// Initialize the geocoder
+				accessToken: mapboxgl.accessToken, // Set the access token
+				mapboxgl: mapboxgl, // Set the mapbox-gl instance
+				marker: false, // Do not use the default marker style
+				placeholder: 'Search for places in Wisconsin', // Placeholder text for the search bar
+				bbox: [-92.889427,42.491592, -86.82352,47.077252], 
+				proximity: {
+					longitude: -89.384373,
+					latitude: 43.0747
+				},
+			});
+				 
+			// Add the geocoder to the map
+			map.addControl(geocoder);
+
+			// Listen for the `result` event from the Geocoder // `result` event is triggered when a user makes a selection
+			//  Add a marker at the result's coordinates
+			geocoder.on('result', (event) => {
+				getDestination(event.result.geometry.coordinates);
+				//map.getSource('single-point').setData(event.result.geometry);
+			});
+
 
 			map.on('load', () => {
 			  // make an initial directions request that
@@ -136,52 +171,57 @@
 			  
 			  map.on('click', (event) => {
 				  const coords = Object.keys(event.lngLat).map((key) => event.lngLat[key]);
-				  const end = {
-				    type: 'FeatureCollection',
-				    features: [
-				      {
-				        type: 'Feature',
-				        properties: {},
-				        geometry: {
-				          type: 'Point',
-				          coordinates: coords
-				        }
-				      }
-				    ]
-				  };
-				  if (map.getLayer('end')) {
-				    map.getSource('end').setData(end);
-				  } else {
-				    map.addLayer({
-				      id: 'end',
-				      type: 'circle',
-				      source: {
-				        type: 'geojson',
-				        data: {
-				          type: 'FeatureCollection',
-				          features: [
-				            {
-				              type: 'Feature',
-				              properties: {},
-				              geometry: {
-				                type: 'Point',
-				                coordinates: coords
-				              }
-				            }
-				          ]
-				        }
-				      },
-				      paint: {
-				        'circle-radius': 10,
-				        'circle-color': '#f30'
-				      }
-				    });
-				  }
-				  getRoute(coords);
+				  //console.log('coords',coords)
+				  getDestination(coords);
 				});
-	
+			});
 
-		});
+
+
+			function getDestination(coords) {
+				const end = {
+			    type: 'FeatureCollection',
+			    features: [
+			      {
+			        type: 'Feature',
+			        properties: {},
+			        geometry: {
+			          type: 'Point',
+			          coordinates: coords
+			        }
+			      }
+			    ]
+			  };
+			  if (map.getLayer('end')) {
+			    map.getSource('end').setData(end);
+			  } else {
+			    map.addLayer({
+			      id: 'end',
+			      type: 'circle',
+			      source: {
+			        type: 'geojson',
+			        data: {
+			          type: 'FeatureCollection',
+			          features: [
+			            {
+			              type: 'Feature',
+			              properties: {},
+			              geometry: {
+			                type: 'Point',
+			                coordinates: coords
+			              }
+			            }
+			          ]
+			        }
+			      },
+			      paint: {
+			        'circle-radius': 10,
+			        'circle-color': '#f30'
+			      }
+			    });
+			  }
+			  getRoute(coords);
+			}	
     </script>
   </body>
 </html>
